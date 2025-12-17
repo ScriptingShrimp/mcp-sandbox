@@ -11,7 +11,15 @@
     "memory": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "searxng": {
+      "command": "uvx",
+      "args": [
+        "searxng-mcp-server",
+        "--searxng-url",
+        "http://localhost:8080"
+      ]
     }
   },
-  "_comment": "SearXNG is available at http://localhost:8080 after deploying searxng-k8s.yaml. It provides a REST API (not MCP protocol) accessible via /search?q=<query>&format=json and /config endpoints. To use SearXNG with MCP, create a custom MCP server that wraps the SearXNG API, or use the built-in 'http' server to make requests to it."
+  "_comment": "SearXNG is available at http://localhost:8080 after deploying searxng-k8s.yaml. The searxng MCP server connects to it using searxng-mcp-server. If SearXNG is not accessible on localhost:8080, you may need to set up port forwarding: kubectl port-forward -n searxng svc/searxng 8080:8080"
 }
