@@ -34,6 +34,14 @@ data:
     # activate advanced bot protection
     # enable this when running the instance for a public usage on the internet
     link_token = false
+
+    [botdetection.ip_lists]
+    # Allow localhost to bypass bot detection for MCP server access
+    # IPs in pass_ip list have unrestricted access and bypass User-Agent checks
+    pass_ip = [
+      '127.0.0.0/8',      # IPv4 localhost
+      '::1',              # IPv6 localhost
+    ]
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -151,6 +159,7 @@ spec:
         image: docker.io/searxng/searxng:latest
         ports:
         - containerPort: 8080
+          hostPort: 8080
           protocol: TCP
         env:
         - name: SEARXNG_BASE_URL
