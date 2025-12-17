@@ -12,6 +12,11 @@ data:
   settings.yml: |
     # see https://docs.searxng.org/admin/settings/settings.html#settings-use-default-settings
     use_default_settings: true
+    search:
+      # Enable JSON format for API access (required for MCP server)
+      formats:
+        - html
+        - json
     server:
       # base_url is defined in the SEARXNG_BASE_URL environment variable
       secret_key: "839b3e7ec8d22bc107f3ef21597e2581192d557fc20f23ba53ab98ee4a79756e"
@@ -36,11 +41,15 @@ data:
     link_token = false
 
     [botdetection.ip_lists]
-    # Allow localhost to bypass bot detection for MCP server access
+    # Allow localhost and private networks to bypass bot detection for MCP server access
     # IPs in pass_ip list have unrestricted access and bypass User-Agent checks
     pass_ip = [
       '127.0.0.0/8',      # IPv4 localhost
       '::1',              # IPv6 localhost
+      '10.0.0.0/8',       # Private network (pod IPs)
+      '172.16.0.0/12',    # Private network
+      '192.168.0.0/16',   # Private network
+      'fd00::/8',         # IPv6 private network
     ]
 ---
 apiVersion: v1
