@@ -2,4 +2,4 @@
 
 ./mcphost \
 --config ./mcp.json \
---model ollama:devstral
+--model ollama:devstral-small-2:latest
