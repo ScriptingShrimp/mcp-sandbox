@@ -1,0 +1,190 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: searxng
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searxng-settings
+  namespace: searxng
+data:
+  settings.yml: |
+    # see https://docs.searxng.org/admin/settings/settings.html#settings-use-default-settings
+    use_default_settings: true
+    server:
+      # base_url is defined in the SEARXNG_BASE_URL environment variable
+      secret_key: "839b3e7ec8d22bc107f3ef21597e2581192d557fc20f23ba53ab98ee4a79756e"
+      limiter: false  # enable this when running the instance for a public usage on the internet
+      image_proxy: true
+    redis:
+      url: redis://valkey:6379/0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searxng-limiter
+  namespace: searxng
+data:
+  limiter.toml: |
+    # This configuration file updates the default configuration file
+    # See https://github.com/searxng/searxng/blob/master/searx/limiter.toml
+
+    [botdetection.ip_limit]
+    # activate advanced bot protection
+    # enable this when running the instance for a public usage on the internet
+    link_token = false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valkey-data
+  namespace: searxng
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: searxng-data
+  namespace: searxng
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey
+  namespace: searxng
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+  selector:
+    app: valkey
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: searxng
+  namespace: searxng
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: searxng
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+  namespace: searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+    spec:
+      containers:
+      - name: valkey
+        image: docker.io/valkey/valkey:8-alpine
+        command:
+          - valkey-server
+          - --save
+          - "30"
+          - "1"
+          - --loglevel
+          - warning
+        ports:
+        - containerPort: 6379
+          protocol: TCP
+        volumeMounts:
+        - name: valkey-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+      volumes:
+      - name: valkey-data
+        persistentVolumeClaim:
+          claimName: valkey-data
+      restartPolicy: Always
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  namespace: searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: searxng
+  template:
+    metadata:
+      labels:
+        app: searxng
+    spec:
+      containers:
+      - name: searxng
+        image: docker.io/searxng/searxng:latest
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        env:
+        - name: SEARXNG_BASE_URL
+          value: "http://localhost:8080/"
+        volumeMounts:
+        - name: searxng-config
+          mountPath: /etc/searxng
+        - name: searxng-limiter-config
+          mountPath: /etc/searxng/limiter.toml
+          subPath: limiter.toml
+        - name: searxng-data
+          mountPath: /var/cache/searxng
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: searxng-config
+        configMap:
+          name: searxng-settings
+          items:
+          - key: settings.yml
+            path: settings.yml
+      - name: searxng-limiter-config
+        configMap:
+          name: searxng-limiter
+          items:
+          - key: limiter.toml
+            path: limiter.toml
+      - name: searxng-data
+        persistentVolumeClaim:
+          claimName: searxng-data
+      restartPolicy: Always
+

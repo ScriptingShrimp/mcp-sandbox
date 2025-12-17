@@ -1,5 +1,5 @@
 #/bin/bash
 
-./mcphost \
+./mcphostX86 \
 --config ./mcp.json \
 --model ollama:devstral-small-2:latest
